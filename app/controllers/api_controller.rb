@@ -1,13 +1,13 @@
 class ApiController < ApplicationController
   def require_login
-    authenticate_token || render_unauthorized('Access denied')
+    authenticate_token || render_uanuthorized('Access denied')
   end
 
   def current_user
     @current_user ||= authenticate_token
   end
 
-  protected
+  #protected
 
   def render_uanuthorized(message)
     errors = { errors: [ { detail: message } ] }
@@ -18,7 +18,12 @@ class ApiController < ApplicationController
 
   def authenticate_token
     authenticate_with_http_token do |token, options|
-      User.find_by(token: token)
+      if user = User.with_unexpired_token(token, 2.days.ago)
+        ActiveSupport::SecurityUtils.secure_compare(
+                     ::Digest::SHA256.hexdigest(token),
+                     ::Digest::SHA256.hexdigest(user.token))
+        user
+      end
     end
   end
 end
